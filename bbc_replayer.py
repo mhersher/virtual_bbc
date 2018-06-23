@@ -10,10 +10,13 @@ import atexit
 ffmpeg_path = 'ffmpeg'
 output_folder = '/home/mhersher/bbc/recordings/'
 time_shift = datetime.timedelta(hours=8)
+playback_begins = datetime.time(6,0,0,0)  #To economize on data usage, only record and play back during hours that are likely to be listened to.
+playback_ends = datetime.time(21,0,0,0)
 
 # Initialize global variables
 s = sched.scheduler(time.time, time.sleep)
 running_processes = []
+
 
 def start_recording():
 	print 'starting recording'
@@ -30,20 +33,32 @@ def start_recording():
 	recording_process = subprocess.Popen(recording_command, shell=True)
 	running_processes.append(recording_process)
 	#monitor recording process, and restart it if needed
-	total_file_length=0
 	time.sleep(5) #wait five seconds to give recording a chance to start before handing off
 	manage_recording(recording_process)
 
 def manage_recording(recording_process):
 	#watch for unexpected recording process closing and restart the process
+	total_file_length = 0
 	while recording_process.poll() is None:
 		print 'recording process still running'
-		time.sleep(15)
+		time.sleep(1)
 		total_file_length=total_file_length+15
 		#kill and restart recording every twelve hours to break up recordings to a reasonable length
 		if total_file_length >= 43200:
 			print 'starting new recording file'
 			recording_process.terminate()
+			start_recording()
+		playback_ends_today = datetime.datetime.combine(datetime.date.today(),playback_ends) #build datetime where playback ends today
+		recording_ends_today = playback_ends_today - time_shift #determine what datetime today we'll no longer be using today's recordings
+		if datetime.datetime.now()>recording_ends_today:
+			print 'ending recording for today'
+			end_process(recording_process)
+			next_start_playback = datetime.datetime.combine(datetime.date.today()+datetime.timedelta(days=1), playback_begins) #playback should next begin tomorrow at the start time
+			next_start_recording = next_start_playback - time_shift # recording should next begin timedelta before tomorrow's playback start time
+			wait_time = next_start_recording - datetime.datetime.now() #determine number of seconds until recording should begin again
+			print 'recording will restart at ', next_start_recording, 'in ', wait_time, ' seconds'
+			time.sleep(wait_time.total_seconds())
+			print 'restarting recording after overnight break'
 			start_recording()
 	print 'recording process stopped - restarting'
 	#remove process ID from running process list
@@ -118,9 +133,16 @@ def terminate():
 	for process in running_processes:
 		process.terminate()
 		try:
-			process.wait(10)
+			process.wait()
 		except:
 			process.kill()
+
+def end_process(process):
+	process.terminate()
+	#try:
+	#	process.wait()
+	#except:
+	#	process.kill()
 
 atexit.register(terminate)
 startup_scheduler()
