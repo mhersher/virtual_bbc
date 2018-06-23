@@ -19,7 +19,17 @@ def start_recording():
 	start_time = datetime.datetime.now()
 	output_file = output_folder + start_time.strftime("%Y-%j-%H-%M-%S")+'.mp4'
 	#schedule_playback(output_file, start_time)
-	recording_command = ffmpeg_path + ' -i http://bbcmedia.ic.llnwd.net/stream/bbcmedia_radio4fm_mf_p -codec copy' + output_file
+	recording_command = ffmpeg_path + ' -i http://bbcmedia.ic.llnwd.net/stream/bbcmedia_radio4fm_mf_p -codec copy ' + output_file + ' -loglevel warning -hide_banner'
+	#start recording process
+	recording_process = subprocess.Popen(recording_command, shell=True)
+	#monitor recording process, and restart it if needed
+	time.sleep(5)
+	while recording_process.poll() is None:
+		print 'recording process still running' 
+		time.sleep(15)
+	print 'recording process stopped - restarting'
+	start_recording()
+
 
 #Schedule playback to begin on the appropriate time delay
 def schedule_playback(output_file, recording_start_time):
