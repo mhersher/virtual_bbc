@@ -1,0 +1,2 @@
+=== README ===
+Goal is to create an application that captures the BBC livestream and replays it on a time zone appopriate delay.  That way, it is playing hour-appropriate, if slightly out of date programming.  This will run on a raspberry pi, ideally permanently wired into the audio path of a tabletop radio.
