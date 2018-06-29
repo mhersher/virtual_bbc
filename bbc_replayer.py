@@ -5,6 +5,11 @@ import os
 import time
 import urllib
 import atexit
+import signal
+try:
+	import psutil
+except ImportError:
+	print 'psutil not installed'
 
 #Set Global Options
 ffmpeg_path = 'ffmpeg'
@@ -19,6 +24,9 @@ running_processes = []
 
 
 def start_recording():
+	wait_time = check_recording_hours()
+	if wait_time>0:
+		time.sleep(wait_time)
 	print 'starting recording'
 	try:
 		check_internet()
@@ -48,16 +56,11 @@ def manage_recording(recording_process):
 			print 'starting new recording file'
 			recording_process.terminate()
 			start_recording()
-		playback_ends_today = datetime.datetime.combine(datetime.date.today(),playback_ends) #build datetime where playback ends today
-		recording_ends_today = playback_ends_today - time_shift #determine what datetime today we'll no longer be using today's recordings
-		if datetime.datetime.now()>recording_ends_today:
-			print 'ending recording for today'
+		wait_time = check_recording_hours()
+		if wait_time.total_seconds()>0:
+			print 'ending process for today'
 			end_process(recording_process)
-			next_start_playback = datetime.datetime.combine(datetime.date.today()+datetime.timedelta(days=1), playback_begins) #playback should next begin tomorrow at the start time
-			next_start_recording = next_start_playback - time_shift # recording should next begin timedelta before tomorrow's playback start time
-			wait_time = next_start_recording - datetime.datetime.now() #determine number of seconds until recording should begin again
-			print 'recording will restart at ', next_start_recording, 'in ', wait_time, ' seconds'
-			time.sleep(wait_time.total_seconds())
+			time.sleep(wait_time)
 			print 'restarting recording after overnight break'
 			start_recording()
 	print 'recording process stopped - restarting'
@@ -65,6 +68,16 @@ def manage_recording(recording_process):
 	running_processes.remove(recording_process)
 	start_recording()
 
+def check_recording_hours():
+		playback_ends_today = datetime.datetime.combine(datetime.date.today(),playback_ends) #build datetime where playback ends today
+		recording_ends_today = playback_ends_today - time_shift #determine what datetime today we'll no longer be using today's recordings
+		if datetime.datetime.now()>recording_ends_today:
+			next_start_playback = datetime.datetime.combine(datetime.date.today()+datetime.timedelta(days=1), playback_begins) #playback should next begin tomorrow at the start time
+			next_start_recording = next_start_playback - time_shift # recording should next begin timedelta before tomorrow's playback start time
+			wait_time = next_start_recording - datetime.datetime.now() #determine number of seconds until recording should begin again
+			print 'recording will restart at ', next_start_recording, 'in ', wait_time, ' seconds'
+			return wait_time.total_seconds()
+		return 0
 
 #Schedule playback to begin on the appropriate time delay
 def schedule_playback(output_file, recording_start_time):
@@ -131,18 +144,23 @@ def get_recording_length(file):
 def terminate():
 	#terminate running processes
 	for process in running_processes:
-		process.terminate()
-		try:
-			process.wait()
-		except:
-			process.kill()
+		end_process(process)
 
-def end_process(process):
-	process.terminate()
-	#try:
-	#	process.wait()
-	#except:
-	#	process.kill()
+def end_process(subprocess, signal=signal.SIGTERM):
+	print 'ending process pid', subprocess.pid
+	ppid=subprocess.pid
+	try:
+		process = psutil.Process(ppid)
+	except psutil.NoSuchProcess:
+		return
+	pids = process.children(recursive=True)
+	for pid in pids:
+		os.kill(pid.pid, signal)
+	subprocess.terminate()
+	try:
+		subprocess.wait()
+	except:
+		subprocess.kill()
 
 atexit.register(terminate)
 startup_scheduler()
