@@ -5,11 +5,12 @@ import sched
 import atexit
 import signal
 import psutil
+import time
 
 #Set Global Options
 ffmpeg_path = 'ffmpeg'
 output_folder = '/home/mhersher/bbc/recordings/'
-time_shift = datetime.timedelta(minutes=8)
+time_shift = datetime.timedelta(minutes=5)
 playback_begins = datetime.time(5,30,0,0)  #To economize on data usage, only record and play back during hours that are likely to be listened to.
 playback_ends = datetime.time(21,0,0,0)
 
@@ -49,8 +50,10 @@ def poll_files():
 	print 'startup scheduler complete'
 
 """Schedule a given filee for a given playback time"""
-def schedule_playback(file,start_time):
-	print 'stub scheduling playback for', file, 'at', start_time
+def schedule_playback(file,start_datetime):
+	start_time=time.mktime(start_datetime.timetuple())
+	print 'scheduling playback for', file, 'at', start_datetime, 'start time is', start_datetime, 'delay time is', start_time-time.time()
+	s.enterabs(start_time,1,start_playback(file,0),())
 	return
 
 """Start playback partway through a file"""
