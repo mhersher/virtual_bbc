@@ -11,13 +11,30 @@ try:
 except ImportError:
 	print 'psutil not installed'
 	exit()
+try:
+	import configparser
+except ImportError:
+	print 'configparser not installed'
+	exit()
 
 #Set Global Options
 ffmpeg_path = 'ffmpeg'
-output_folder = '/home/mhersher/bbc/recordings/'
-time_shift = datetime.timedelta(hours=8)
-playback_begins = datetime.time(5,30,0,0)  #To economize on data usage, only record and play back during hours that are likely to be listened to.
-playback_ends = datetime.time(21,0,0,0)
+#Set Global Options
+print 'reading configuration from bbc_replayer.conf'
+config = configparser.ConfigParser()
+config.read('bbc_replayer.conf')
+settings = config['default']
+time_shift=datetime.timedelta(hours=int(settings.get('time_shift','8')))
+output_folder=settings.get('output_folder', '~/')
+playback_begins_string=settings.get('playback_begins','06:00:00')
+playback_ends_string=settings.get('playback_ends','20:00:00')
+playback_begins=datetime.datetime.strptime(playback_begins_string, '%H:%M:%S').time()
+playback_ends=datetime.datetime.strptime(playback_ends_string,'%H:%M:%S').time()
+if settings.getboolean('debug'):
+	print 'debug mode enabled'
+	time_shift=datetime.timedelta(minutes=2)
+	playback_begins= datetime.time(00,00,00,0)
+	playback_ends= datetime.time(23,59,59,0)
 
 # Initialize global variables
 s = sched.scheduler(time.time, time.sleep)
@@ -49,7 +66,7 @@ def manage_recording(recording_process):
 	total_file_length = 0
 	while recording_process.poll() is None:
 		print 'recording process still running at', datetime.datetime.now()
-		time.sleep(60*5)
+		time.sleep(30)
 		total_file_length=total_file_length+15
 		#kill and restart recording every twelve hours to break up recordings to a reasonable length
 		if total_file_length >= 43200:
@@ -111,7 +128,7 @@ def terminate():
 	for process in running_processes:
 		end_process(process)
 
-def end_process(subprocess, signal=signal.SIGTERM):
+def end_process(subprocess, signal=signal.SIGINT):
 	print 'ending process pid', subprocess.pid
 	ppid=subprocess.pid
 	try:

@@ -1,28 +1,43 @@
 import datetime
 import os
 import subprocess
-import sched
+from apscheduler.schedulers.background import BackgroundScheduler
 import atexit
 import signal
 import psutil
 import time
+import configparser
 
 #Set Global Options
-ffmpeg_path = 'ffmpeg'
-output_folder = '/home/mhersher/bbc/recordings/'
-time_shift = datetime.timedelta(minutes=5)
-playback_begins = datetime.time(5,30,0,0)  #To economize on data usage, only record and play back during hours that are likely to be listened to.
-playback_ends = datetime.time(21,0,0,0)
-
+print 'reading configuration from bbc_replayer.conf'
+config = configparser.ConfigParser()
+config.read('bbc_replayer.conf')
+settings = config['default']
+time_shift=datetime.timedelta(hours=int(settings.get('time_shift','8')))
+output_folder=settings.get('output_folder', '~/')
+playback_begins_string=settings.get('playback_begins','06:00:00')
+playback_ends_string=settings.get('playback_ends','20:00:00')
+playback_begins=datetime.datetime.strptime(playback_begins_string, "%H:%M:%S")
+playback_ends=datetime.datetime.strptime(playback_ends_string,"%H:%M:%S")
+if settings.getboolean('debug'):
+	print 'debug mode enabled'
+	time_shift=datetime.timedelta(minutes=2)
+	playback_begins= datetime.time(00,00,00,0)
+	playback_ends= datetime.time(23,59,59,0)
 
 #Global variables
 running_processes = []
-s = sched.scheduler(time.time, time.sleep)
+scheduler=BackgroundScheduler()
+tracked_files = []
 
 """Check length of an arbitrary recording"""
 def get_recording_length(file):
 	process="ffprobe -show_entries format=Duration -v error "+output_folder+file+" | grep 'duration'"
-	duration=float(subprocess.check_output(process, shell=True)[9:].strip())
+	try:
+		duration=float(subprocess.check_output(process, shell=True)[9:].strip())
+	except subprocess.CalledProcessError: #If ffprobe is called right when the file is starting to record, it gives an error - need to wait for a duration
+		time.sleep(10)
+		duration=float(subprocess.check_output(process, shell=True)[9:].strip())
 	#print 'recording', file, 'is', duration, 'seconds long'
 	return duration
 
@@ -38,31 +53,36 @@ def poll_files():
 		if playback_end_time <= datetime.datetime.now():
 			print filename, ' is old - deleting'
 			os.remove(output_folder+filename)
+			try:  #at startup, old fiiles will be deleted, but not have already been tracked - avoid error when trying to delete untracked file.
+				tracked_files.remove(filename)
+			except ValueError:
+				continue
 		#If the file is supposed to play in the future, schedule it.
-		elif playback_start_time > datetime.datetime.now():
+		elif playback_start_time > datetime.datetime.now() and filename not in tracked_files:
 			print filename, ' is in the future - scheduling playback'
 			schedule_playback(output_folder+filename, playback_start_time)
+			tracked_files.append(filename)
 		#If the file should have already started playing, start playing it now at the appropriate timepoint.
-		else:
+		elif filename not in tracked_files:
 			start_offset = datetime.datetime.now()- playback_start_time
 			print filename, 'is active now - starting playback', start_offset
 			start_playback(output_folder+filename,start_offset)
-	print 'startup scheduler complete'
+			tracked_files.append(filename)
+	if len(tracked_files)==0:
+			print 'scheduler complete - no files scheduled for playback'
 
 """Schedule a given filee for a given playback time"""
-def schedule_playback(file,start_datetime):
-	start_time=time.mktime(start_datetime.timetuple())
-	print 'scheduling playback for', file, 'at', start_datetime, 'start time is', start_datetime, 'delay time is', start_time-time.time()
-	s.enterabs(start_time,1,start_playback(file,0),())
-	return
+def schedule_playback(file,start_time):
+	print 'scheduling playback for', file, 'at', start_time, 'start time is', start_time, 'delay time is', start_time-datetime.datetime.now()
+	#s.enter(start_time-time.time(),1,start_playback(file,0),())
+	job = scheduler.add_job(start_playback,'date',run_date=start_time, args=(file,0))
 
 """Start playback partway through a file"""
 def start_playback(file,seek_time):
-	print 'starting playbback for', file, 'at', seek_time,'seconds in'
+	print 'starting playback for', file, 'at', seek_time,'seconds in'
 	command = 'mplayer -really-quiet -ss ' + str(seek_time) + ' ' + file
 	playback_process = subprocess.Popen(command, shell=True)
 	running_processes.append(playback_process)
-	return
 
 """Review all files on startup and schedule playback"""
 def startup():
@@ -74,7 +94,7 @@ def terminate_all():
 	for process in running_processes:
 		end_process(process)
 
-def end_process(subprocess, signal=signal.SIGTERM):
+def end_process(subprocess, signal=signal.SIGINT):
 	print 'ending process pid', subprocess.pid
 	ppid=subprocess.pid
 	try:
@@ -90,6 +110,12 @@ def end_process(subprocess, signal=signal.SIGTERM):
 	except:
 		subprocess.kill()
 
+def monitor_playback():
+	while True:
+		poll_files()  #Check for any newly added files and schedule them.
+		time.sleep(30)
+
 atexit.register(terminate_all)
-startup()
-s.run()
+#startup()
+scheduler.start()
+monitor_playback()
