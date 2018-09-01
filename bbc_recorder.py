@@ -23,7 +23,7 @@ ffmpeg_path = 'ffmpeg'
 #Set Global Options
 print 'reading configuration from bbc_replayer.conf'
 config = configparser.ConfigParser()
-config.read('bbc_replayer.conf')
+config.read(os.path.dirname(os.path.realpath(sys.argv[0]))+'/bbc_replayer.conf')
 settings = config['default']
 #Send stdout to logfile
 sys.stdout = open(settings.get('log_folder')+'recorder.log', 'a',0)
@@ -33,8 +33,10 @@ playback_begins_string=settings.get('playback_begins','06:00:00')
 playback_ends_string=settings.get('playback_ends','20:00:00')
 playback_begins=datetime.datetime.strptime(playback_begins_string, '%H:%M:%S').time()
 playback_ends=datetime.datetime.strptime(playback_ends_string,'%H:%M:%S').time()
+debug=False
 if settings.getboolean('debug'):
 	print 'debug mode enabled'
+	debug=True
 	time_shift=datetime.timedelta(minutes=2)
 	playback_begins= datetime.time(00,00,00,0)
 	playback_ends= datetime.time(23,59,59,0)
@@ -68,7 +70,8 @@ def manage_recording(recording_process):
 	#watch for unexpected recording process closing and restart the process
 	total_file_length = 0
 	while recording_process.poll() is None:
-		print 'recording process still running at', datetime.datetime.now()
+		if debug == True:
+			print 'recording process still running at', datetime.datetime.now()
 		time.sleep(30)
 		total_file_length=total_file_length+15
 		#kill and restart recording every twelve hours to break up recordings to a reasonable length
