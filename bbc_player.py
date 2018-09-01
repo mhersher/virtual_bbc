@@ -18,8 +18,10 @@ print 'reading configuration from bbc_replayer.conf'
 config = configparser.ConfigParser()
 config.read(os.path.dirname(os.path.realpath(sys.argv[0]))+'/bbc_replayer.conf')
 settings = config['default']
-#Send stdout to logfile
-sys.stdout = open(settings.get('log_folder')+'player.log', 'a',0)
+#Send logs and errors to logfile
+logfile = open(settings.get('log_folder')+'player.log', 'a',0)
+sys.stdout = logfile
+sys.stderr = logfile
 time_shift=datetime.timedelta(hours=int(settings.get('time_shift','8')))
 output_folder=settings.get('output_folder', '~/')
 playback_begins_string=settings.get('playback_begins','06:00:00')
