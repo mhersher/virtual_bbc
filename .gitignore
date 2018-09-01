@@ -105,3 +105,6 @@ venv.bak/
 
 # recordings cache
 recordings/
+
+# logs
+logs/
