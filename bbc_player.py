@@ -16,7 +16,7 @@ import sys
 #Set Global Options
 print 'reading configuration from bbc_replayer.conf'
 config = configparser.ConfigParser()
-config.read('bbc_replayer.conf')
+config.read(os.path.dirname(os.path.realpath(sys.argv[0]))+'/bbc_replayer.conf')
 settings = config['default']
 #Send stdout to logfile
 sys.stdout = open(settings.get('log_folder')+'player.log', 'a',0)
