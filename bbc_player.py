@@ -6,13 +6,20 @@ import atexit
 import signal
 import psutil
 import time
-import configparser
+try:
+	import configparser
+except ImportError:
+	print 'configparser not installed'
+	exit()
+import sys
 
 #Set Global Options
 print 'reading configuration from bbc_replayer.conf'
 config = configparser.ConfigParser()
 config.read('bbc_replayer.conf')
 settings = config['default']
+#Send stdout to logfile
+sys.stdout = open(settings.get('log_folder')+'player.log', 'a')
 time_shift=datetime.timedelta(hours=int(settings.get('time_shift','8')))
 output_folder=settings.get('output_folder', '~/')
 playback_begins_string=settings.get('playback_begins','06:00:00')
@@ -83,11 +90,6 @@ def start_playback(file,seek_time):
 	command = 'mplayer -really-quiet -ss ' + str(seek_time) + ' ' + file
 	playback_process = subprocess.Popen(command, shell=True)
 	running_processes.append(playback_process)
-
-"""Review all files on startup and schedule playback"""
-def startup():
-	poll_files()
-	return
 
 def terminate_all():
 	#terminate running processes
