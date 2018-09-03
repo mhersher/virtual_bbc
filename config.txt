@@ -1,5 +1,20 @@
+configure wi-fi
+set timezone
+configure alsa
+install ffmpeg
+
 installed package "futures"
 installed package "psutil"
 installed package "apscheduler"
 installed package "funcsigs"
 
+installed remote-syslog2 (papertrail logging)
+
+pulle package into /home/pi/virtual_bbc
+create ../logs and ../recordings folders
+edit configuration files appropriately	 
+
+add to /etc/rc.local:
+	python /home/pi/virtual_bbc/bbc_recorder.py &
+	python /home/pi/virtual_bbc/bbc_player.py &
+	remote_syslog
