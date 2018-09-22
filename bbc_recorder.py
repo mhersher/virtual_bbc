@@ -49,9 +49,6 @@ running_processes = []
 
 
 def start_recording():
-	wait_time = check_recording_hours()
-	if wait_time>0:
-		time.sleep(wait_time)
 	print 'starting recording'
 	try:
 		check_internet()
@@ -88,11 +85,11 @@ def manage_recording(recording_process):
                         #print 'ending recording process pid '+str(recording_process.pid)
 			end_process(recording_process)
 			start_recording()
-		wait_time = check_recording_hours()
-		if wait_time>0:
-			print 'ending process for today'
+                if check_recording_hours()==-1:
+			print 'ending recording process for today'
 			end_process(recording_process)
-			time.sleep(wait_time)
+                        while check_recording_hours()==-1:
+                            time.sleep(300)
 			print 'restarting recording after overnight break'
 			start_recording()
 	print 'recording process stopped - restarting'
@@ -101,16 +98,14 @@ def manage_recording(recording_process):
 	start_recording()
 
 def check_recording_hours():
-		playback_ends_today = datetime.datetime.combine(datetime.date.today(),playback_ends) #build datetime where playback ends today
-		recording_ends_today = playback_ends_today - time_shift + datetime.timedelta(days=1) #determine what datetime today we'll no longer be using today's recordings
-		#print playback_ends_today, recording_ends_today
-		if datetime.datetime.now()>recording_ends_today:
-			next_start_playback = datetime.datetime.combine(datetime.date.today()+datetime.timedelta(days=1), playback_begins) #playback should next begin tomorrow at the start time
-			next_start_recording = next_start_playback - time_shift # recording should next begin timedelta before tomorrow's playback start time
-			wait_time = next_start_recording - datetime.datetime.now() #determine number of seconds until recording should begin again
-			print 'recording will restart at ', next_start_recording, 'in ', wait_time, ' seconds'
-			return wait_time.total_seconds()
-		return 0
+        current_time = datetime.datetime.now().time()
+        recording_begins = (datetime.datetime.combine(datetime.date.today(), playback_begins)-time_shift).time()
+        recording_ends = (datetime.datetime.combine(datetime.date.today(), playback_ends)-time_shift).time()
+        if current_time > recording_begins and current_time < recording_ends:
+            return 0
+        else:
+            print 'outside of recording hours'
+            return -1
 
 #Get rid of old recordings once the're not needed
 def cleanup_recordings():
