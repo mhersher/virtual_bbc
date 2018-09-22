@@ -66,6 +66,7 @@ def start_recording():
 	running_processes.append(recording_process)
 	#monitor recording process, and restart it if needed
 	time.sleep(5) #wait five seconds to give recording a chance to start before handing off
+        print 'recording process started, pid '+str(recording_process.pid)
 	manage_recording(recording_process)
 
 def manage_recording(recording_process):
@@ -73,18 +74,19 @@ def manage_recording(recording_process):
 	total_file_length = 0
 	log_timer=0
 	while recording_process.poll() is None:
-		if debug == True:
+                log_timer += 30
+		if debug == True and log_time > 60:
 			print 'recording process still running at', datetime.datetime.now()
-			log_timer+=30
-			if log_timer>300:
-				print 'recording process still running at', datetime.datetime.now()
-				log_timer=0
+		elif log_timer>300:
+			print 'recording process still running at', datetime.datetime.now()
+			log_timer=0
 		time.sleep(30)
 		total_file_length=total_file_length+30
 		#kill and restart recording every twelve hours to break up recordings to a reasonable length
-		if total_file_length >= 43200:
-			print 'starting new recording file'
-			recording_process.terminate()
+                if total_file_length >= 43200:
+			print 'recording process is now '+str(total_file_length/60)+ ' minutes long.  Starting new file'
+                        #print 'ending recording process pid '+str(recording_process.pid)
+			end_process(recording_process)
 			start_recording()
 		wait_time = check_recording_hours()
 		if wait_time>0:
