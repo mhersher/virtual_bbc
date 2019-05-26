@@ -36,6 +36,8 @@ playback_ends_string=settings.get('playback_ends','20:00:00')
 playback_begins=datetime.datetime.strptime(playback_begins_string, '%H:%M:%S').time()
 playback_ends=datetime.datetime.strptime(playback_ends_string,'%H:%M:%S').time()
 debug=False
+print playback_begins
+print playback_ends
 if settings.getboolean('debug'):
 	print 'debug mode enabled'
 	debug=True
@@ -101,10 +103,12 @@ def check_recording_hours():
         current_time = datetime.datetime.now().time()
         recording_begins = (datetime.datetime.combine(datetime.date.today(), playback_begins)-time_shift).time()
         recording_ends = (datetime.datetime.combine(datetime.date.today(), playback_ends)-time_shift).time()
-        if current_time > recording_begins and current_time < recording_ends:
+        #print 'current time is',current_time,'recording begins at',recording_begins,'recording_ends at',recording_ends
+        if current_time > recording_begins or current_time < recording_ends:
             return 0
         else:
-            print 'outside of recording hours'
+            print 'outside of recording hours' 
+            print 'current time is',current_time,'recording begins at',recording_begins,'recording_ends at',recording_ends
             return -1
 
 #Get rid of old recordings once the're not needed
@@ -127,10 +131,12 @@ def check_internet():
 		try:
 			urllib.urlopen("http://example.com")
 			print "Can't find stream, but internet connection confirmed.  Retrying in 60 seconds"
-			return IOError
+			time.sleep(60)
+                        return IOError
 		except IOError:
 			print 'No internet connection.  Retrying in 60 seconds'
-			return IOError
+			time.sleep(60)
+                        return IOError
 	return True
 
 def terminate():

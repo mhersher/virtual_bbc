@@ -2,6 +2,7 @@ import datetime
 import os
 import subprocess
 from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler import events
 import atexit
 import signal
 import psutil
@@ -62,7 +63,7 @@ def poll_files():
 		if playback_end_time <= datetime.datetime.now():
 			print filename, ' is old - deleting'
 			os.remove(output_folder+filename)
-			try:  #at startup, old fiiles will be deleted, but not have already been tracked - avoid error when trying to delete untracked file.
+			try:  #at startup, old files will be deleted, but not have already been tracked - avoid error when trying to delete untracked file.
 				tracked_files.remove(filename)
 			except ValueError:
 				continue
@@ -83,8 +84,8 @@ def poll_files():
 """Schedule a given filee for a given playback time"""
 def schedule_playback(file,start_time):
 	print 'scheduling playback for', file, 'at', start_time, 'start time is', start_time, 'delay time is', start_time-datetime.datetime.now()
-	#s.enter(start_time-time.time(),1,start_playback(file,0),())
 	job = scheduler.add_job(start_playback,'date',run_date=start_time, args=(file,0))
+        
 
 """Start playback partway through a file"""
 def start_playback(file,seek_time):
@@ -118,8 +119,11 @@ def monitor_playback():
 	while True:
 		poll_files()  #Check for any newly added files and schedule them.
 		time.sleep(30)
+def job_listener(event):
+    print event
 
 atexit.register(terminate_all)
 #startup()
 scheduler.start()
+scheduler.add_listener(job_listener, events.EVENT_JOB_EXECUTED | events.EVENT_JOB_MISSED | events.EVENT_JOB_ERROR)
 monitor_playback()
