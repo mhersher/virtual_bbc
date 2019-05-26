@@ -58,9 +58,11 @@ def start_recording():
 		time.sleep(60)
 		start_recording()
 	start_time = datetime.datetime.now()
-	output_file = output_folder + start_time.strftime("%Y-%j-%H-%M-%S")+'.mp3'
-	recording_command = ffmpeg_path + ' -i http://bbcmedia.ic.llnwd.net/stream/bbcmedia_radio4fm_mf_p -codec copy ' + output_file + ' -loglevel warning -hide_banner'
-	#start recording process
+	output_file = output_folder + start_time.strftime("%Y-%j-%H-%M-%S")+'.mp4'
+	#recording_command = ffmpeg_path + ' -i http://bbcmedia.ic.llnwd.net/stream/bbcmedia_radio4fm_mf_p -codec copy ' + output_file + ' -loglevel warning -hide_banner'
+        recording_command = ffmpeg_path + ' -re -loglevel warning -hide_banner -i https://a.files.bbci.co.uk/media/live/manifesto/audio/simulcast/dash/nonuk/dash_low/aks/bbc_radio_fourfm.mpd -c copy ' + output_file
+        #print recording_command
+        #start recording process
 	recording_process = subprocess.Popen(recording_command, shell=True)
 	running_processes.append(recording_process)
 	#monitor recording process, and restart it if needed

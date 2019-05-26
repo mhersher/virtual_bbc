@@ -55,7 +55,7 @@ def get_recording_length(file):
 def poll_files():
 	for filename in os.listdir(output_folder):
 		duration = datetime.timedelta(seconds=get_recording_length(filename))
-		recording_start_time=datetime.datetime.strptime(filename, "%Y-%j-%H-%M-%S.mp3")
+		recording_start_time=datetime.datetime.strptime(filename, "%Y-%j-%H-%M-%S.mp4")
 		recording_end_time=recording_start_time + duration
 		playback_start_time=recording_start_time+time_shift
 		playback_end_time=recording_end_time+time_shift
