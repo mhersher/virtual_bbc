@@ -76,35 +76,43 @@ class bbc_player(object):
 			duration=float(subprocess.check_output(process, shell=True)[9:].strip())
 		except subprocess.CalledProcessError: #If ffprobe is called right when the file is starting to record, it gives an error - need to wait for a duration
 			time.sleep(10)
-			duration=float(subprocess.check_output(process, shell=True)[9:].strip())
-		#print 'recording', file, 'is', duration, 'seconds long'
+			try:
+				duration=float(subprocess.check_output(process, shell=True)[9:].strip())
+			except:
+				print('problem finding length of file, returning 12 hours')
+				duration = 12*60*60#print 'recording', file, 'is', duration, 'seconds long'
+		#print(duration, 'for file:', file)
 		return duration
 
 	"""Look for new files in the recording folder and add them to scheduler"""
 	def poll_files(self):
 		for filename in os.listdir(self.output_folder):
-			recording_start_time=datetime.datetime.strptime(filename, "%Y-%j-%H-%M-%S.mp4")
-			ok_to_delete_time=recording_start_time+datetime.timedelta(days=2)
-			playback_start_time=recording_start_time+self.time_shift
-			#Check for old files and delete them.  Do this approximately because getting precise file length is unreliable from ffprobe.
-			if ok_to_delete_time <= datetime.datetime.now():
-				print(filename, ' is old - deleting')
-				os.remove(self.output_folder+filename)
-				try:  #at startup, old files will be deleted, but not have already been tracked - avoid error when trying to delete untracked file.
-					self.tracked_files.remove(filename)
-				except ValueError:
-					continue
-			#If the file is supposed to play in the future, schedule it.
-			elif playback_start_time > datetime.datetime.now() and filename not in self.tracked_files:
-				print(filename, ' is in the future - scheduling playback')
-				self.schedule_playback(self.output_folder+filename, playback_start_time)
-				self.tracked_files.append(filename)
-			#If the file should have already started playing, start playing it now at the appropriate timepoint.
-			elif filename not in self.tracked_files:
-				start_offset = datetime.datetime.now()- playback_start_time
-				print(filename+': attempting playback starting at', start_offset)
-				self.start_playback(self.output_folder+filename,start_offset)
-				self.tracked_files.append(filename)
+			if filename[-4:]=='.mp4':
+				recording_start_time=datetime.datetime.strptime(filename, "%Y-%j-%H-%M-%S.mp4")
+				ok_to_delete_time=recording_start_time+datetime.timedelta(days=1)
+				playback_start_time=recording_start_time+self.time_shift
+				#Check for old files and delete them.  Do this approximately because getting precise file length is unreliable from ffprobe.
+				if ok_to_delete_time <= datetime.datetime.now():
+					print(filename, ' is old - deleting')
+					os.remove(self.output_folder+filename)
+					try:  #at startup, old files will be deleted, but not have already been tracked - avoid error when trying to delete untracked file.
+						self.tracked_files.remove(filename)
+					except ValueError:
+						continue
+				#If the file is supposed to play in the future, schedule it.
+				elif playback_start_time > datetime.datetime.now() and filename not in self.tracked_files:
+					print(filename, ' is in the future - scheduling playback')
+					self.schedule_playback(self.output_folder+filename, playback_start_time)
+					self.tracked_files.append(filename)
+				#If the file should have already started playing, start playing it now at the appropriate timepoint.
+				elif filename not in self.tracked_files:
+					start_offset = datetime.datetime.now()- playback_start_time
+					if start_offset.total_seconds() < self.get_recording_length(filename):
+						print(filename+': attempting playback starting at', start_offset)
+						self.start_playback(self.output_folder+filename,start_offset)
+					else:
+						print(filename+': is in the past')
+					self.tracked_files.append(filename)
 		if len(self.tracked_files)==0:
 				print('scheduler complete - no files scheduled for playback')
 
@@ -149,7 +157,7 @@ class bbc_player(object):
 				status = process.poll()
 				if status == 0:
 					self.running_processes.remove(process)
-					print(process.pid, 'has completed')
+					print(process.pid, 'has completed at',datetime.datetime.now())
 				else:
 					print(process.pid, 'is still running')
 			time.sleep(30)

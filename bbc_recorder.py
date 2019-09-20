@@ -77,7 +77,7 @@ class bbc_recorder(object):
 		recording_command = self.ffmpeg_path + ' -analyzeduration 20000000 -probesize 20000000 -hide_banner -loglevel warning -re -i http://bbcmedia.ic.llnwd.net/stream/bbcmedia_radio4fm_mf_p -c copy ' + output_file
 		#print(recording_command)
 		#start recording process
-		recording_process = subprocess.Popen(recording_command, shell=True)
+		recording_process = subprocess.Popen(recording_command, shell=True, stdin=subprocess.PIPE)
 		self.running_processes.append(recording_process)
 		#monitor recording process, and restart it if needed
 		time.sleep(5) #wait five seconds to give recording a chance to start before handing off
@@ -90,55 +90,42 @@ class bbc_recorder(object):
 		log_timer=0
 		while recording_process.poll() is None:
 			log_timer += 30
-			if self.debug == True and log_timer > 60:
-				print('recording process still running at', datetime.datetime.now())
+			if (self.debug == True and log_timer > 60) or log_timer>300:
+				print('file length now', total_file_length/60, 'minutes at', datetime.datetime.now())
 				log_timer=0
 				time.sleep(30)
-			elif log_timer>300:
-				print('recording process still running at', datetime.datetime.now())
-				log_timer=0
-				time.sleep(30)
-		total_file_length=total_file_length+30
-		#kill and restart recording every twelve hours to break up recordings to a reasonable length
-		if total_file_length >= 43200:
-			print('recording process is now '+str(total_file_length/60)+ ' minutes long.  Starting new file')
-	        #print 'ending recording process pid '+str(recording_process.pid)
-			end_process(recording_process)
-			self.start_recording()
-		if self.check_recording_hours()==-1:
-			print('ending recording process for today')
-			self.end_process(recording_process)
-			while check_recording_hours()==-1:
-				time.sleep(300)
-			print('restarting recording after overnight break')
-			self.start_recording()
+				total_file_length=total_file_length+30
+
+			#kill and restart recording every twelve hours to break up recordings to a reasonable length
+			if total_file_length >= 43200 or (self.debug==True and total_file_length>=60):
+				print('recording process is now '+str(total_file_length/60)+ ' minutes long.  Starting new file')
+				self.end_process(recording_process)
+				self.start_recording()
+			if self.check_recording_hours()==-1:
+				print('ending recording process for today')
+				self.end_process(recording_process)
+				while self.check_recording_hours()==-1:
+					time.sleep(300)
+				print('restarting recording after overnight break')
+				self.start_recording()
 		print('recording process stopped - restarting')
 		#remove process ID from running process list
 		self.running_processes.remove(recording_process)
 		self.start_recording()
 
 	def check_recording_hours(self):
-	        current_time = datetime.datetime.now().time()
-	        recording_begins = (datetime.datetime.combine(datetime.date.today(), self.playback_begins)-self.time_shift).time()
-	        recording_ends = (datetime.datetime.combine(datetime.date.today(), self.playback_ends)-self.time_shift).time()
-	        #print 'current time is',current_time,'recording begins at',recording_begins,'recording_ends at',recording_ends
-	        if current_time > recording_begins or current_time < recording_ends:
-	            return 0
-	        else:
-	            print('outside of recording hours')
-	            print('current time is',current_time,'recording begins at',recording_begins,'recording_ends at',recording_ends)
-	            return -1
-
-	#Get rid of old recordings once the're not needed
-	def cleanup_recordings(self):
-		for filename in os.listdir(output_folder):
-			start_time=datetime.datetime.strptime(filename, "%Y-%j-%H-%M-%S.mp4")
-			duration=datetime.timedelta(seconds=recording_length(output_folder+filename))
-			end_time=start_time + duration
-			#If the end of the file is before the last time that would still play in the future, delete it.
-			if end_time+time_shift <= datetime.datetime.now():
-				os.remove(output_folder+filename)
-		return
+		if self.debug == True:
+			return 0
+		current_time = datetime.datetime.now().time()
+		recording_begins = (datetime.datetime.combine(datetime.date.today(), self.playback_begins)-self.time_shift).time()
+		recording_ends = (datetime.datetime.combine(datetime.date.today(), self.playback_ends)-self.time_shift).time()
+		#print 'current time is',current_time,'recording begins at',recording_begins,'recording_ends at',recording_ends
+		if current_time > recording_begins or current_time < recording_ends:
+			return 0
+		else:
+			print('outside of recording hours')
+			print('current time is',current_time,'recording begins at',recording_begins,'recording_ends at',recording_ends)
+			return -1
 
 	def check_internet(self):
 		#check internet connection
@@ -159,26 +146,31 @@ class bbc_recorder(object):
 
 	def terminate(self):
 		#terminate running processes
+		print('terminating all running processes')
 		for process in self.running_processes:
 			self.end_process(process)
 
-	def end_process(self, subprocess, signal=signal.SIGINT):
+	def end_process(self, subprocess, signal=signal.SIGSTOP):
 		print('ending process pid', subprocess.pid)
-		ppid=subprocess.pid
 		try:
-			process = psutil.Process(ppid)
+			process = psutil.Process(subprocess.pid)
 		except psutil.NoSuchProcess:
+			print('process already stopped:',subprocess.pid)
 			return
-		pids = process.children(recursive=True)
-		for pid in pids:
-			os.kill(pid.pid, signal)
-		subprocess.terminate()
+		command = process.cmdline()
+		if 'ffmpeg' in command:
+			print('ending ffmpeg recording gracefully')
+			#subprocess.terminate()
+			end_recording = subprocess.communicate(input=b'q')
+			#print(end_recording)
+		else:
+			subprocess.terminate()
 		try:
 			subprocess.wait()
 		except:
 			subprocess.kill()
-
-
+		self.running_processes.remove(subprocess)
+		return
 
 if __name__=="__main__":
 	    bbc_recorder().start_recording()
