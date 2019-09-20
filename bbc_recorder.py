@@ -109,7 +109,7 @@ def check_recording_hours():
         if current_time > recording_begins or current_time < recording_ends:
             return 0
         else:
-            print 'outside of recording hours' 
+            print 'outside of recording hours'
             print 'current time is',current_time,'recording begins at',recording_begins,'recording_ends at',recording_ends
             return -1
 
@@ -157,10 +157,6 @@ def end_process(subprocess, signal=signal.SIGINT):
 	for pid in pids:
 		os.kill(pid.pid, signal)
 	subprocess.terminate()
-	try:
-		subprocess.wait()
-	except:
-		subprocess.kill()
 
 atexit.register(terminate)
 start_recording()
