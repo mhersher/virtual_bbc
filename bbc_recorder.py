@@ -95,7 +95,7 @@ class bbc_recorder(object):
 				log_timer=0
 				time.sleep(30)
 				total_file_length=total_file_length+30
-
+        
 			#kill and restart recording every twelve hours to break up recordings to a reasonable length
 			if total_file_length >= 43200 or (self.debug==True and total_file_length>=60):
 				print('recording process is now '+str(total_file_length/60)+ ' minutes long.  Starting new file')
@@ -171,6 +171,6 @@ class bbc_recorder(object):
 			subprocess.kill()
 		self.running_processes.remove(subprocess)
 		return
-
+  
 if __name__=="__main__":
 	    bbc_recorder().start_recording()
