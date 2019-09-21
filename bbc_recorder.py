@@ -75,9 +75,10 @@ class bbc_recorder(object):
 		output_file = self.output_folder + start_time.strftime("%Y-%j-%H-%M-%S")+'.mp4'
 		#recording_command = ffmpeg_path + ' -i http://bbcmedia.ic.llnwd.net/stream/bbcmedia_radio4fm_mf_p -codec copy ' + output_file + ' -loglevel warning -hide_banner'
 		recording_command = self.ffmpeg_path + ' -analyzeduration 20000000 -probesize 20000000 -hide_banner -loglevel warning -re -i http://bbcmedia.ic.llnwd.net/stream/bbcmedia_radio4fm_mf_p -c copy ' + output_file
+		recording_args = [self.ffmpeg_path,'-analyzeduration', '20000000', '-probesize', '20000000', '-hide_banner', '-loglevel', 'warning', '-re', '-i', 'http://bbcmedia.ic.llnwd.net/stream/bbcmedia_radio4fm_mf_p', '-c', 'copy', output_file]
 		#print(recording_command)
 		#start recording process
-		recording_process = subprocess.Popen(recording_command, shell=True, stdin=subprocess.PIPE)
+		recording_process = subprocess.Popen(recording_args, stdin=subprocess.PIPE)
 		self.running_processes.append(recording_process)
 		#monitor recording process, and restart it if needed
 		time.sleep(5) #wait five seconds to give recording a chance to start before handing off
@@ -95,7 +96,7 @@ class bbc_recorder(object):
 				log_timer=0
 				time.sleep(30)
 				total_file_length=total_file_length+30
-        
+
 			#kill and restart recording every twelve hours to break up recordings to a reasonable length
 			if total_file_length >= 43200 or (self.debug==True and total_file_length>=60):
 				print('recording process is now '+str(total_file_length/60)+ ' minutes long.  Starting new file')
@@ -165,12 +166,8 @@ class bbc_recorder(object):
 			#print(end_recording)
 		else:
 			subprocess.terminate()
-		try:
-			subprocess.wait()
-		except:
-			subprocess.kill()
 		self.running_processes.remove(subprocess)
 		return
-  
+
 if __name__=="__main__":
 	    bbc_recorder().start_recording()
