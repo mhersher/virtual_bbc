@@ -22,7 +22,7 @@ class bbc_player(object):
 			print(key)
 		settings = config['recording']
 		print('...configuration read successfully')
-		logfile = open(settings.get('log_folder')+'player.log', 'a')
+		logfile = open(settings.get('log_folder')+'player.log', 'a',1)
 		self.time_shift=datetime.timedelta(hours=int(settings.get('time_shift','8')))
 		self.output_folder=settings.get('output_folder', '~/')
 		playback_begins_string=settings.get('playback_begins','06:00:00')
