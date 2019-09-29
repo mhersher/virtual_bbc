@@ -18,7 +18,7 @@ class bbc_recorder(object):
 		config = configparser.ConfigParser()
 		config.read(self.config_file)
 		for key in config['recording']:
-			print(key)
+			print(key+':', config['playback'].get(key))
 		settings = config['recording']
 		print('...configuration read successfully')
 		logfile = open(settings.get('log_folder')+'recorder.log', 'a',1)
