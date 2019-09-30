@@ -162,11 +162,19 @@ class bbc_player(object):
 				if status == 0:
 					self.running_processes.remove(process)
 					print(process.pid, 'has completed at',datetime.datetime.now())
-					print(process.stdout.read())
-					print(process.stderr.read())
+					stderr_output = process.stderr.read().splitlines()
+					print(f'Error Messages From PID {process.pid}:')
+					for line in stderr_output:
+						print(str(line))
+					if self.debug== True:
+						print(f'Output from PID {process.pid}:')
+						stdout_output = process.stdout.read().splitlines()
+						for line in stdout_output:
+							print(str(line))
 				else:
 					if self.debug == True:
 						print(process.pid, 'is still running')
+
 			time.sleep(30)
 
 	def job_listener(self,event):

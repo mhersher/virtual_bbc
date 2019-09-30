@@ -1,0 +1,14 @@
+[Unit]
+Description=BBC Player
+After=network.target
+
+[Service]
+ExecStart=<<<path to python environment>>> <<<path to directory>>>/bbc_player.py -c <<<path to config_file>>>
+WorkingDirectory=<<<path to home directory>>>
+StandardOutput=inherit
+StandardError=inherit
+Restart=always
+User=pi
+
+[Install]
+WantedBy=multi-user.target

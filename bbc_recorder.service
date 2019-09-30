@@ -1,0 +1,14 @@
+[Unit]
+Description=BBC Recorder
+After=network.target
+
+[Service]
+ExecStart=<<<path to python environment>>> <<<path to directory>>>/bbc_recorder.py -c <<<path to config_file>>>
+WorkingDirectory=<<<path to home directory>>>
+StandardOutput=inherit
+StandardError=inherit
+Restart=always
+User=pi
+
+[Install]
+WantedBy=multi-user.target
