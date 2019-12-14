@@ -18,7 +18,7 @@ class bbc_recorder(object):
 		config = configparser.ConfigParser()
 		config.read(self.config_file)
 		for key in config['recording']:
-			print(key)
+			print(key+':', config['playback'].get(key))
 		settings = config['recording']
 		print('...configuration read successfully')
 		logfile = open(settings.get('log_folder')+'recorder.log', 'a',1)
@@ -40,7 +40,8 @@ class bbc_recorder(object):
 		else:
 			sys.stdout = logfile
 			sys.stderr = logfile
-		atexit.register(self.terminate)
+		atexit.register(self.cleanup)
+		signal.signal(signal.SIGTERM, terminate)
 
 	def read_arguments(self):
 		parser = argparse.ArgumentParser()
@@ -145,7 +146,7 @@ class bbc_recorder(object):
 				return IOError
 		return True
 
-	def terminate(self):
+	def cleanup(self):
 		#terminate running processes
 		print('terminating all running processes')
 		for process in self.running_processes:
@@ -168,6 +169,10 @@ class bbc_recorder(object):
 			subprocess.terminate()
 		self.running_processes.remove(subprocess)
 		return
+
+def terminate(signal,frame):
+	print('received sigterm, shutting down')
+	sys.exit(0)
 
 if __name__=="__main__":
 	    bbc_recorder().start_recording()

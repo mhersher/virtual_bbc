@@ -18,16 +18,18 @@ class bbc_player(object):
 		print('reading configuration from file...')
 		config = configparser.ConfigParser()
 		config.read(self.config_file)
-		for key in config['recording']:
-			print(key)
-		settings = config['recording']
+		for key in config['playback']:
+			print(key+':', config['playback'].get(key))
+		settings = config['playback']
 		print('...configuration read successfully')
 		logfile = open(settings.get('log_folder')+'player.log', 'a',1)
 		self.time_shift=datetime.timedelta(hours=int(settings.get('time_shift','8')))
 		self.output_folder=settings.get('output_folder', '~/')
 		playback_begins_string=settings.get('playback_begins','06:00:00')
 		playback_ends_string=settings.get('playback_ends','20:00:00')
-		self.ffmpeg_path=settings.get('ffmpeg_path','ffmpeg')
+		self.ffprobe_path=settings.get('ffprobe_path','ffprobe')
+		self.vlc_path=settings.get('vlc_path','vlc')
+		self.mplayer_path=settings.get('mplayer_path','mplayer')
 		self.playback_begins=datetime.datetime.strptime(playback_begins_string, '%H:%M:%S').time()
 		self.playback_ends=datetime.datetime.strptime(playback_ends_string,'%H:%M:%S').time()
 		# Initialize global variables
@@ -71,7 +73,7 @@ class bbc_player(object):
 
 	"""Check length of an arbitrary recording"""
 	def get_recording_length(self,file):
-		process="ffprobe -show_entries format=Duration -v error "+self.output_folder+file+" | grep 'duration'"
+		process=self.ffprobe_path+" -show_entries format=Duration -v error "+self.output_folder+file+" | grep 'duration'"
 		try:
 			duration=float(subprocess.check_output(process, shell=True)[9:].strip())
 		except subprocess.CalledProcessError: #If ffprobe is called right when the file is starting to record, it gives an error - need to wait for a duration
@@ -109,7 +111,7 @@ class bbc_player(object):
 					start_offset = datetime.datetime.now()- playback_start_time
 					if start_offset.total_seconds() < self.get_recording_length(filename):
 						print(filename+': attempting playback starting at', start_offset)
-						self.start_playback(self.output_folder+filename,start_offset)
+						self.start_playback(self.output_folder+filename,start_offset.total_seconds())
 					else:
 						print(filename+': is in the past')
 					self.tracked_files.append(filename)
@@ -123,9 +125,11 @@ class bbc_player(object):
 
 	"""Start playback partway through a file"""
 	def start_playback(self,file,seek_time):
-		print('starting playback for', file, 'at', seek_time,'seconds in')
-		command = 'mplayer -really-quiet -ss ' + str(seek_time) + ' ' + file
-		playback_process = subprocess.Popen(command, shell=True)
+		#command_args = [self.vlc_path, file, '--start-time', str(seek_time), '--play-and-exit','--quiet']
+		command_args = [self.mplayer_path,'-quiet','-nolirc','-noar','-nojoystick', '-ss', str(seek_time), file]
+		#print(command_args)
+		playback_process = subprocess.Popen(command_args, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+		print('starting playback for', file, 'at', seek_time,'seconds in as pid',playback_process.pid)
 		self.running_processes.append(playback_process)
 
 	def terminate_all(self):
@@ -158,8 +162,19 @@ class bbc_player(object):
 				if status == 0:
 					self.running_processes.remove(process)
 					print(process.pid, 'has completed at',datetime.datetime.now())
+					stderr_output = process.stderr.read().splitlines()
+					print(f'Error Messages From PID {process.pid}:')
+					for line in stderr_output:
+						print(str(line))
+					if self.debug== True:
+						print(f'Output from PID {process.pid}:')
+						stdout_output = process.stdout.read().splitlines()
+						for line in stdout_output:
+							print(str(line))
 				else:
-					print(process.pid, 'is still running')
+					if self.debug == True:
+						print(process.pid, 'is still running')
+
 			time.sleep(30)
 
 	def job_listener(self,event):
