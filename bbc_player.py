@@ -163,11 +163,11 @@ class bbc_player(object):
 					self.running_processes.remove(process)
 					print(process.pid, 'has completed at',datetime.datetime.now())
 					stderr_output = process.stderr.read().splitlines()
-					print(f'Error Messages From PID {process.pid}:')
+					print('Error Messages From PID {process.pid}:')
 					for line in stderr_output:
 						print(str(line))
 					if self.debug== True:
-						print(f'Output from PID {process.pid}:')
+						print('Output from PID {process.pid}:')
 						stdout_output = process.stdout.read().splitlines()
 						for line in stdout_output:
 							print(str(line))
