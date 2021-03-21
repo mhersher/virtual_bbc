@@ -27,6 +27,7 @@ class bbc_recorder(object):
 		playback_begins_string=settings.get('playback_begins','06:00:00')
 		playback_ends_string=settings.get('playback_ends','20:00:00')
 		self.ffmpeg_path=settings.get('ffmpeg_path','ffmpeg')
+		self.stream_url=settings.get('stream_path','http://stream.live.vc.bbcmedia.co.uk/bbc_radio_fourfm')
 		self.playback_begins=datetime.datetime.strptime(playback_begins_string, '%H:%M:%S').time()
 		self.playback_ends=datetime.datetime.strptime(playback_ends_string,'%H:%M:%S').time()
 		# Initialize global variables
@@ -75,7 +76,7 @@ class bbc_recorder(object):
 		start_time = datetime.datetime.now()
 		output_file = self.output_folder + start_time.strftime("%Y-%j-%H-%M-%S")+'.mp4'
 		#recording_command = ffmpeg_path + ' -i http://bbcmedia.ic.llnwd.net/stream/bbcmedia_radio4fm_mf_p -codec copy ' + output_file + ' -loglevel warning -hide_banner'
-		recording_command = self.ffmpeg_path + ' -analyzeduration 20000000 -probesize 20000000 -hide_banner -loglevel warning -re -i http://bbcmedia.ic.llnwd.net/stream/bbcmedia_radio4fm_mf_p -c copy ' + output_file
+		recording_command = self.ffmpeg_path + ' -analyzeduration 20000000 -probesize 20000000 -hide_banner -loglevel warning -re -i '+self.stream_url+' -c copy ' + output_file
 		recording_args = [self.ffmpeg_path,'-analyzeduration', '20000000', '-probesize', '20000000', '-hide_banner', '-loglevel', 'warning', '-re', '-i', 'http://bbcmedia.ic.llnwd.net/stream/bbcmedia_radio4fm_mf_p', '-c', 'copy', output_file]
 		#print(recording_command)
 		#start recording process

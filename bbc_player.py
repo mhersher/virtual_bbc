@@ -125,11 +125,12 @@ class bbc_player(object):
 
 	"""Start playback partway through a file"""
 	def start_playback(self,file,seek_time):
-		#command_args = [self.vlc_path, file, '--start-time', str(seek_time), '--play-and-exit','--quiet']
-		command_args = [self.mplayer_path,'-quiet','-nolirc','-noar','-nojoystick', '-ss', str(seek_time), file]
+		#command_args = [self.mplayer_path,'-quiet','-nolirc','-noar','-nojoystick','-demuxer','mov', '-ss', str(seek_time), file]
+		command_args = [self.mplayer_path,'-quiet','-nolirc','-noar','-nojoystick','-ss', str(seek_time), file]
 		#print(command_args)
 		playback_process = subprocess.Popen(command_args, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
 		print('starting playback for', file, 'at', seek_time,'seconds in as pid',playback_process.pid)
+		print("playback command is {}".format(playback_process.args))
 		self.running_processes.append(playback_process)
 
 	def terminate_all(self):
